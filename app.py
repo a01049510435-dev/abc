@@ -1,64 +1,58 @@
 import streamlit as st
-import time
 import random
 
-# --- 1. 상태 및 시간 초기화 ---
-# 'state'를 사용하여 0: 대기, 1: 준비, 2: 결과 상태를 관리합니다.
-if 'state' not in st.session_state:
-    st.session_state.state = 0
-if 'start_time' not in st.session_state:
-    st.session_state.start_time = 0.0
+# --- 1. 게임 설정 ---
+GRID_SIZE = 5 # 맵 크기 (5x5)
+PLAYER = "🐸"
+GOAL = "🏆"
+ROADBLOCK = "🚗"
 
-st.title("⚡ 초간단 반응 속도 측정기")
-st.markdown("---")
+# --- 2. 상태 초기화 ---
+if 'player_pos' not in st.session_state:
+    st.session_state.player_pos = [GRID_SIZE - 1, GRID_SIZE // 2] # 시작 위치 (맨 아래 중앙)
+if 'score' not in st.session_state:
+    st.session_state.score = 0
+if 'game_over' not in st.session_state:
+    st.session_state.game_over = False
+if 'map' not in st.session_state:
+    st.session_state.map = [['' for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-# --- 2. 버튼 클릭 핸들러 ---
-def handle_click():
-    """클릭할 때마다 상태를 전환하고 시간을 기록합니다."""
+# --- 3. 맵 생성 함수 ---
+def initialize_map():
+    """맵에 무작위로 장애물과 목표 지점을 배치합니다."""
+    new_map = [['' for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     
-    # 상태 0: 대기 중 -> 준비 시작
-    if st.session_state.state == 0:
-        st.session_state.state = 1
-        st.session_state.start_time = time.time()
+    # 맵에 무작위 장애물 배치 (약 15% 확률)
+    for r in range(GRID_SIZE - 1): # 마지막 줄(시작 위치) 제외
+        for c in range(GRID_SIZE):
+            if random.random() < 0.15: 
+                new_map[r][c] = ROADBLOCK
+                
+    # 목표 지점 배치 (맨 위 줄의 랜덤 위치)
+    goal_col = random.randint(0, GRID_SIZE - 1)
+    new_map[0][goal_col] = GOAL
+    
+    st.session_state.map = new_map
+
+# 맵이 초기화되지 않았다면 초기화
+if not st.session_state.map or st.session_state.game_over:
+    initialize_map()
+
+
+# --- 4. 움직임 처리 함수 ---
+def move_player(dr, dc):
+    """플레이어의 위치를 업데이트하고 충돌을 확인합니다."""
+    if st.session_state.game_over:
+        return
+
+    r, c = st.session_state.player_pos
+    new_r, new_c = r + dr, c + dc
+
+    # 경계 확인
+    if 0 <= new_r < GRID_SIZE and 0 <= new_c < GRID_SIZE:
+        st.session_state.player_pos = [new_r, new_c]
         
-    # 상태 1: 준비 시작 -> 결과 계산 (반응 속도 측정)
-    elif st.session_state.state == 1:
-        end_time = time.time()
-        reaction_time_ms = (end_time - st.session_state.start_time) * 1000
-        st.session_state.reaction_time = reaction_time_ms
-        st.session_state.state = 2 # 결과 상태로 전환
-    
-    # 상태 2: 결과 -> 재시작
-    elif st.session_state.state == 2:
-        st.session_state.state = 0 # 초기 상태로 돌아가 재시작
-
-# --- 3. UI 렌더링 (상태별 메시지 및 버튼 표시) ---
-
-button_label = "테스트 시작"
-button_type = "primary"
-message = "아래 버튼을 눌러 측정을 시작하세요."
-
-if st.session_state.state == 1:
-    button_label = "클릭!"
-    button_type = "success"
-    message = "🟢 **버튼이 초록색일 때 바로 클릭하세요!**"
-
-elif st.session_state.state == 2:
-    button_label = "다시 시작"
-    reaction_time = st.session_state.reaction_time
-    message = f"⏱️ **측정 완료! 당신의 반응 속도는 {reaction_time:.2f} ms 입니다!**"
-    
-    if reaction_time < 200:
-        st.balloons()
-        st.success("매우 빠릅니다! 200ms 미만!")
-
-# 현재 메시지 표시
-st.header(message)
-
-# 메인 컨트롤 버튼
-st.button(
-    button_label, 
-    on_click=handle_click, 
-    use_container_width=True, 
-    type=button_type
-)
+        # 충돌 및 목표 확인
+        target_cell = st.session_state.map[new_r][new_c]
+        
+        if target_cell == ROADBLOCK:
