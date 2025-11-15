@@ -1,26 +1,67 @@
 import streamlit as st
+import numpy as np
+import librosa
+import librosa.display
+import matplotlib.pyplot as plt
+from io import BytesIO
 
-# 1. 상태(점수) 초기화
-# 'score'가 st.session_state에 없으면 0으로 초기화합니다.
-if 'score' not in st.session_state:
-    st.session_state.score = 0
+# --- 1. 앱 제목 설정 ---
+st.title("🎧 실시간 소리 스펙트로그램 분석기")
+st.markdown("---")
 
-st.title("버튼 클릭 게임 🕹️")
-st.header(f"현재 점수: **{st.session_state.score}**")
-
-# 2. 컨트롤 함수 (클릭 시 점수 증가)
-def click_button():
-    """버튼이 클릭될 때 점수를 1 증가시킵니다."""
-    st.session_state.score += 1
-    st.balloons() # 클릭할 때마다 풍선 효과를 줍니다.
-
-# 3. 사용자 컨트롤 위젯 (버튼)
-# 버튼을 누르면 on_click에 지정된 함수가 실행됩니다.
-st.button(
-    "클릭하여 점수 얻기!", 
-    on_click=click_button, 
-    use_container_width=True,
-    type="primary" # 버튼을 강조합니다.
+# --- 2. 오디오 입력 위젯 (마이크 녹음) ---
+# st.audio_input을 사용하여 사용자의 마이크로부터 오디오를 녹음합니다.
+recorded_audio = st.audio_input(
+    "🎙️ 실생활의 소리를 녹음하세요:",
+    sample_rate=44100,  # 높은 품질의 오디오를 위해 샘플링 속도(Hz)를 높입니다.
+    key="audio_recorder"
 )
 
-st.caption("새로고침(Rerun)을 해도 점수가 유지됩니다.")
+if recorded_audio is not None:
+    st.success("✅ 오디오 녹음 완료! 분석을 시작합니다.")
+    
+    # 녹음된 오디오 데이터를 처리하는 과정
+    try:
+        # 3. 오디오 데이터를 NumPy 배열로 변환
+        # Streamlit의 BytesIO 객체를 librosa로 로드하기 위해 사용
+        audio_data, sr = librosa.load(
+            BytesIO(recorded_audio.read()), 
+            sr=None  # 원본 샘플링 속도 사용
+        )
+        
+        # 4. 푸리에 변환 (FFT)을 통한 스펙트로그램 계산
+        # N_FFT는 주파수 해상도를, HOP_LENGTH는 시간 해상도를 결정합니다.
+        N_FFT = 2048  # FFT 창 크기 (정밀도)
+        HOP_LENGTH = 512 # 겹치는 간격 (시간 부드러움)
+        
+        # S는 푸리에 변환된 주파수 진폭 (스펙트로그램)
+        S = librosa.stft(audio_data, n_fft=N_FFT, hop_length=HOP_LENGTH)
+        # 진폭을 데시벨(dB) 단위로 변환
+        S_dB = librosa.amplitude_to_db(np.abs(S), ref=np.max)
+        
+        # 5. 스펙트로그램 시각화 (matplotlib 사용)
+        fig, ax = plt.subplots(figsize=(10, 4))
+        
+        # librosa.display를 사용해 정교한 스펙트로그램을 그립니다.
+        img = librosa.display.specshow(S_dB, 
+                                       sr=sr, 
+                                       hop_length=HOP_LENGTH, 
+                                       x_axis='time', 
+                                       y_axis='log', # 주파수 축을 로그 스케일로 (소리 분석에 유리)
+                                       ax=ax)
+        
+        ax.set_title('정교한 스펙트로그램 (주파수 분석)', fontsize=14)
+        ax.set_xlabel("시간 (Time)")
+        ax.set_ylabel("주파수 (Frequency, Hz)")
+        fig.colorbar(img, ax=ax, format='%+2.0f dB', label='진폭 (Amplitude)')
+        plt.tight_layout()
+        
+        # 6. Streamlit에 그래프 표시
+        st.pyplot(fig)
+        st.caption(f"샘플링 속도: {sr} Hz, 총 길이: {audio_data.shape[0]/sr:.2f} 초")
+        
+    except Exception as e:
+        st.error(f"오디오 처리 중 오류 발생: {e}")
+
+st.markdown("---")
+st.info("스펙트로그램은 소리의 **시간-주파수-진폭**을 동시에 보여주는 그래프입니다. 따뜻한 색일수록 해당 시간에 그 주파수의 소리가 크다는 것을 의미합니다.")
