@@ -1,45 +1,64 @@
 import streamlit as st
-import numpy as np
-import matplotlib.pyplot as plt
-from io import BytesIO
-import soundfile as sf # 오디오 파일을 읽기 위해 추가 (pip install soundfile)
+import time
+import random
 
-# 1. 라이브러리 설치 안내
-st.info("이 코드를 실행하려면 'pip install streamlit numpy matplotlib soundfile'이 필요합니다.")
-st.title("🎶 간단한 소리 파형 분석기")
+# --- 1. 상태 및 시간 초기화 ---
+# 'state'를 사용하여 0: 대기, 1: 준비, 2: 결과 상태를 관리합니다.
+if 'state' not in st.session_state:
+    st.session_state.state = 0
+if 'start_time' not in st.session_state:
+    st.session_state.start_time = 0.0
 
-# 2. 오디오 입력 받기
-uploaded_file = st.file_uploader("🎙️ 오디오 파일(.wav, .mp3)을 업로드하거나 녹음하세요:", type=["wav", "mp3"])
+st.title("⚡ 초간단 반응 속도 측정기")
+st.markdown("---")
 
-if uploaded_file is not None:
-    st.success("✅ 오디오 파일 수신 완료. 파형 분석을 시작합니다.")
-
-    try:
-        # 3. 오디오 데이터 읽기 및 NumPy 배열로 변환
-        # soundfile을 사용하여 파일에서 오디오 데이터와 샘플링 레이트(sr)를 읽습니다.
-        audio_data, sr = sf.read(BytesIO(uploaded_file.read()))
+# --- 2. 버튼 클릭 핸들러 ---
+def handle_click():
+    """클릭할 때마다 상태를 전환하고 시간을 기록합니다."""
+    
+    # 상태 0: 대기 중 -> 준비 시작
+    if st.session_state.state == 0:
+        st.session_state.state = 1
+        st.session_state.start_time = time.time()
         
-        # 만약 스테레오(2채널)라면 첫 번째 채널만 사용 (파형을 단순화하기 위해)
-        if len(audio_data.shape) > 1:
-            audio_data = audio_data[:, 0]
+    # 상태 1: 준비 시작 -> 결과 계산 (반응 속도 측정)
+    elif st.session_state.state == 1:
+        end_time = time.time()
+        reaction_time_ms = (end_time - st.session_state.start_time) * 1000
+        st.session_state.reaction_time = reaction_time_ms
+        st.session_state.state = 2 # 결과 상태로 전환
+    
+    # 상태 2: 결과 -> 재시작
+    elif st.session_state.state == 2:
+        st.session_state.state = 0 # 초기 상태로 돌아가 재시작
 
-        # 4. 시간 축 생성
-        # 시간 축을 초 단위로 계산합니다.
-        time = np.linspace(0., len(audio_data) / sr, len(audio_data))
+# --- 3. UI 렌더링 (상태별 메시지 및 버튼 표시) ---
 
-        # 5. 파형 그래프 시각화 (matplotlib)
-        fig, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(time, audio_data, color='blue') # 시간 vs. 진폭(소리 크기)
-        
-        ax.set_title('소리 파형 (Waveform)', fontsize=14)
-        ax.set_xlabel("시간 (Time, seconds)")
-        ax.set_ylabel("진폭 (Amplitude)")
-        ax.grid(True)
-        plt.tight_layout()
+button_label = "테스트 시작"
+button_type = "primary"
+message = "아래 버튼을 눌러 측정을 시작하세요."
 
-        # 6. Streamlit에 그래프 표시
-        st.pyplot(fig)
-        st.caption(f"샘플링 속도: {sr} Hz, 총 길이: {time[-1]:.2f} 초")
+if st.session_state.state == 1:
+    button_label = "클릭!"
+    button_type = "success"
+    message = "🟢 **버튼이 초록색일 때 바로 클릭하세요!**"
 
-    except Exception as e:
-        st.error(f"오디오 처리 중 오류 발생. 지원되는 파일 형식인지 확인해주세요: {e}")
+elif st.session_state.state == 2:
+    button_label = "다시 시작"
+    reaction_time = st.session_state.reaction_time
+    message = f"⏱️ **측정 완료! 당신의 반응 속도는 {reaction_time:.2f} ms 입니다!**"
+    
+    if reaction_time < 200:
+        st.balloons()
+        st.success("매우 빠릅니다! 200ms 미만!")
+
+# 현재 메시지 표시
+st.header(message)
+
+# 메인 컨트롤 버튼
+st.button(
+    button_label, 
+    on_click=handle_click, 
+    use_container_width=True, 
+    type=button_type
+)
