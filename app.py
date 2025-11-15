@@ -1,58 +1,60 @@
 import streamlit as st
 import random
 
-# --- 1. 게임 설정 ---
-GRID_SIZE = 5 # 맵 크기 (5x5)
-PLAYER = "🐸"
-GOAL = "🏆"
-ROADBLOCK = "🚗"
-
-# --- 2. 상태 초기화 ---
+# --- 1. 상태 초기화 ---
 if 'player_pos' not in st.session_state:
-    st.session_state.player_pos = [GRID_SIZE - 1, GRID_SIZE // 2] # 시작 위치 (맨 아래 중앙)
-if 'score' not in st.session_state:
-    st.session_state.score = 0
+    st.session_state.player_pos = 0 # 0: 시작, 1: 중간, 2: 목표
 if 'game_over' not in st.session_state:
     st.session_state.game_over = False
-if 'map' not in st.session_state:
-    st.session_state.map = [['' for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-# --- 3. 맵 생성 함수 ---
-def initialize_map():
-    """맵에 무작위로 장애물과 목표 지점을 배치합니다."""
-    new_map = [['' for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+st.title("🌱 최소 이동 시뮬레이션")
+
+# --- 2. 맵 표시 ---
+def display_map():
+    """현재 플레이어 위치에 따라 맵을 표시합니다."""
     
-    # 맵에 무작위 장애물 배치 (약 15% 확률)
-    for r in range(GRID_SIZE - 1): # 마지막 줄(시작 위치) 제외
-        for c in range(GRID_SIZE):
-            if random.random() < 0.15: 
-                new_map[r][c] = ROADBLOCK
-                
-    # 목표 지점 배치 (맨 위 줄의 랜덤 위치)
-    goal_col = random.randint(0, GRID_SIZE - 1)
-    new_map[0][goal_col] = GOAL
+    # 텍스트 기반 맵: [시작] -> [중간] -> [목표]
+    cells = ["⬜", "⬜", "🏆"] 
     
-    st.session_state.map = new_map
+    if st.session_state.player_pos < len(cells):
+        cells[st.session_state.player_pos] = "🐸" # 현재 위치 표시
+        
+    st.code(" ".join(cells))
 
-# 맵이 초기화되지 않았다면 초기화
-if not st.session_state.map or st.session_state.game_over:
-    initialize_map()
-
-
-# --- 4. 움직임 처리 함수 ---
-def move_player(dr, dc):
-    """플레이어의 위치를 업데이트하고 충돌을 확인합니다."""
+# --- 3. 이동 처리 함수 ---
+def try_move():
+    """이동 버튼 클릭 시 로직 처리"""
     if st.session_state.game_over:
         return
-
-    r, c = st.session_state.player_pos
-    new_r, new_c = r + dr, c + dc
-
-    # 경계 확인
-    if 0 <= new_r < GRID_SIZE and 0 <= new_c < GRID_SIZE:
-        st.session_state.player_pos = [new_r, new_c]
         
-        # 충돌 및 목표 확인
-        target_cell = st.session_state.map[new_r][new_c]
+    # 50% 확률로 장애물에 걸림 (게임 오버)
+    if st.session_state.player_pos == 1 and random.random() < 0.5:
+        st.session_state.game_over = True
+        st.error("💥 **장애물! 게임 오버!**")
+        return
+
+    # 다음 칸으로 이동
+    st.session_state.player_pos += 1
+    
+    # 목표 지점 도착
+    if st.session_state.player_pos >= 2:
+        st.session_state.game_over = True
+        st.balloons()
+        st.success("🏆 **성공!** 목표에 도착했습니다!")
         
-        if target_cell == ROADBLOCK:
+
+# --- 4. UI 렌더링 ---
+display_map()
+
+if not st.session_state.game_over:
+    st.button(
+        "➡️ 한 칸 이동 시도", 
+        on_click=try_move, 
+        use_container_width=True, 
+        type="primary"
+    )
+else:
+    if st.button("🔄 다시 시작"):
+        st.session_state.player_pos = 0
+        st.session_state.game_over = False
+        st.rerun() # 앱을 새로고침하여 초기 상태로 돌아갑니다.
