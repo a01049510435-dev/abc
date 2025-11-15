@@ -1,106 +1,57 @@
 import streamlit as st
+# (참고: 실제 키보드 입력 컴포넌트는 st.pills가 아닐 수 있으며, 
+# 해당 컴포넌트의 사용법에 따라 코드가 달라집니다. 
+# 여기서는 키 입력 -> move_pacman이 호출된다는 개념을 설명합니다.)
+# from streamlit_pills import pills 
 import random
+import numpy as np
 
-# --- 1. 게임 상수 설정 ---
-MAX_AMMO = 10       # 최대 장전 탄약 수
-HIT_PROBABILITY = 0.40 # 기본 명중률 (40%)
-SCORE_PER_HIT = 10  # 명중 시 얻는 점수
+# (이전 팩맨 코드의 상수, 상태 초기화, 맵 초기화 함수, 유령 이동 함수는 동일하다고 가정)
+# ... [이전 코드 생략] ...
 
-# --- 2. 상태 초기화 ---
-if 'ammo' not in st.session_state:
-    st.session_state.ammo = MAX_AMMO
-if 'score' not in st.session_state:
-    st.session_state.score = 0
-if 'total_shots' not in st.session_state:
-    st.session_state.total_shots = 0
-if 'message' not in st.session_state:
-    st.session_state.message = "게임을 시작하려면 '발사'하세요!"
+# --- 1. 상태 초기화 및 맵 설정 (이전 코드와 동일) ---
+# ... (st.session_state 초기화 및 reset_game() 함수) ...
 
-st.title("🔫 Streamlit 정교한 사격 시뮬레이션")
-st.caption("주의: 이 게임은 버튼 클릭 기반의 시뮬레이션입니다.")
+# --- 2. 맵 렌더링 (이전 코드와 동일) ---
+# ... (render_map() 함수) ...
 
-# --- 3. 게임 로직 함수 ---
-def shoot():
-    """총을 발사하고 상태를 업데이트합니다."""
+# --- 3. 핵심: 키보드 입력 감지 컴포넌트 통합 (개념적 코드) ---
+
+def on_key_press(key_code):
+    """키보드 입력이 감지될 때 호출되는 함수"""
+    dy, dx = 0, 0
     
-    if st.session_state.ammo <= 0:
-        st.session_state.message = "🛑 **총알이 없습니다! 재장전하세요!**"
-        return
-
-    # 탄약 감소 및 총 발사 횟수 증가
-    st.session_state.ammo -= 1
-    st.session_state.total_shots += 1
-
-    # 명중률 계산
-    if random.random() < HIT_PROBABILITY:
-        # 명중 시
-        st.session_state.score += SCORE_PER_HIT
-        st.session_state.message = f"🎯 **명중!** (+{SCORE_PER_HIT}점) | 남은 총알: {st.session_state.ammo}"
-    else:
-        # 빗맞음 시
-        st.session_state.message = f"❌ 빗나갔습니다. | 남은 총알: {st.session_state.ammo}"
+    # 키보드 코드를 Streamlit 컴포넌트가 Python으로 전달한다고 가정
+    if key_code == 'ArrowUp':
+        dy, dx = -1, 0
+    elif key_code == 'ArrowDown':
+        dy, dx = 1, 0
+    elif key_code == 'ArrowLeft':
+        dy, dx = 0, -1
+    elif key_code == 'ArrowRight':
+        dy, dx = 0, 1
         
-def reload():
-    """총알을 재장전합니다."""
-    if st.session_state.ammo == MAX_AMMO:
-        st.session_state.message = "이미 탄창이 가득 찼습니다!"
-    else:
-        st.session_state.ammo = MAX_AMMO
-        st.session_state.message = "🔄 **재장전 완료!** 탄창이 가득 찼습니다."
+    if dy != 0 or dx != 0:
+        # 팩맨 이동 로직 호출
+        move_pacman(dy, dx)
+        # 상태 업데이트 후 화면 재갱신
+        st.rerun()
 
-def calculate_accuracy():
-    """명중률을 계산합니다."""
-    if st.session_state.total_shots == 0:
-        return 0.0
-    hits = (st.session_state.score / SCORE_PER_HIT)
-    return (hits / st.session_state.total_shots) * 100
+st.header("🟡 Streamlit 키보드 제어 팩맨")
+st.caption("실제 작동을 위해서는 JavaScript 키보드 감지 컴포넌트가 필요합니다.")
 
-# --- 4. UI 렌더링 및 상태 표시 ---
+# 맵과 점수 표시
+# ... (render_map() 및 점수 표시) ...
 
-# 점수, 탄약, 명중률 표시 (가장 정교한 요소)
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("총 점수", st.session_state.score)
-with col2:
-    st.metric("남은 총알", f"{st.session_state.ammo} / {MAX_AMMO}")
-with col3:
-    st.metric("명중률", f"{calculate_accuracy():.1f}%")
+if not st.session_state.game_over:
+    # ⚠️ 이 부분이 실제 키보드 입력을 웹 브라우저로부터 받아오는 컴포넌트가 들어갈 자리입니다.
+    # 예시: keyboard_input = external_keyboard_component("listen")
+    # if keyboard_input:
+    #     on_key_press(keyboard_input)
+    
+    # 임시: 키보드 컴포넌트 없이 버튼만 유지 (Streamlit 기본 기능만 사용할 경우)
+    st.subheader("방향 버튼을 눌러 이동하세요 (키보드 대신)")
+    
+    # ... [이전 버튼 코드 유지] ...
 
-st.markdown("---")
-st.subheader(st.session_state.message)
-
-# 사격/재장전 버튼
-col_shoot, col_reload = st.columns(2)
-
-# 발사 버튼
-with col_shoot:
-    # 총알이 없으면 버튼 비활성화 (disabled=True)
-    is_shoot_disabled = st.session_state.ammo <= 0
-    st.button(
-        "💥 발사! (Shoot!)", 
-        on_click=shoot, 
-        use_container_width=True, 
-        type="primary",
-        disabled=is_shoot_disabled
-    )
-
-# 재장전 버튼
-with col_reload:
-    # 탄약이 가득 차면 버튼 비활성화
-    is_reload_disabled = st.session_state.ammo == MAX_AMMO
-    st.button(
-        "🔄 재장전 (Reload)", 
-        on_click=reload, 
-        use_container_width=True,
-        disabled=is_reload_disabled
-    )
-
-st.markdown("---")
-
-# 리셋 버튼
-if st.button("게임 및 점수 리셋"):
-    st.session_state.ammo = MAX_AMMO
-    st.session_state.score = 0
-    st.session_state.total_shots = 0
-    st.session_state.message = "리셋되었습니다. 다시 시작하세요!"
-    st.rerun()
+# --- [이전 팩맨 코드의 move_pacman, move_ghost, UI 나머지 부분 유지] ---
