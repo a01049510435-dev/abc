@@ -1,52 +1,26 @@
 import streamlit as st
-import random
 
-# --- 1. 게임 상태 초기화 및 관리 (Control Panel) ---
-# st.session_state를 사용하여 현재 위치(스토리)와 아이템을 유지합니다.
-if 'location' not in st.session_state:
-    st.session_state.location = "숲 입구"
-if 'inventory' not in st.session_state:
-    st.session_state.inventory = []
+# 1. 상태(점수) 초기화
+# 'score'가 st.session_state에 없으면 0으로 초기화합니다.
+if 'score' not in st.session_state:
+    st.session_state.score = 0
 
-st.title("🌲 잃어버린 열쇠를 찾아서")
-st.write("사용자의 **선택**에 따라 스토리가 바뀝니다. 행동을 컨트롤하세요!")
-st.markdown("---")
+st.title("버튼 클릭 게임 🕹️")
+st.header(f"현재 점수: **{st.session_state.score}**")
 
-# --- 2. 게임 데이터 정의 (스토리와 행동) ---
-# 각 위치에 대한 설명과 다음 행동 정의
-game_map = {
-    "숲 입구": {
-        "text": "당신은 어두운 숲 입구에 도착했습니다. 어디로 가시겠습니까?",
-        "options": {
-            "왼쪽 길로 간다": "어두운 동굴",
-            "오른쪽 길로 간다": "작은 오두막",
-        }
-    },
-    "어두운 동굴": {
-        "text": "동굴 안은 습하고 어둡습니다. 바닥에서 **작은 동전**을 발견했습니다. 동전을 줍겠습니까?",
-        "options": {
-            "동전을 줍는다": "동전 획득",
-            "무시하고 돌아간다": "숲 입구",
-        }
-    },
-    "작은 오두막": {
-        "text": "낡은 오두막입니다. 문이 잠겨 있습니다. 어떻게 하시겠습니까?",
-        "options": {
-            "문고리를 흔든다": "오두막 내부",
-            "돌아가자": "숲 입구",
-        }
-    },
-    "동전 획득": {
-        "text": "동전을 줍고 다시 숲 입구로 돌아갑니다.",
-        "options": {
-            "숲 입구로 돌아간다": "숲 입구"
-        }
-    },
-    "오두막 내부": {
-        "text": "문이 열렸습니다! 안에는 번쩍이는 **황금 열쇠**가 놓여 있습니다!",
-        "options": {
-            "열쇠를 줍는다": "게임 승리"
-        }
-    },
-    "게임 승리": {
-        "text": "🎉 **축하합니다!** 당신
+# 2. 컨트롤 함수 (클릭 시 점수 증가)
+def click_button():
+    """버튼이 클릭될 때 점수를 1 증가시킵니다."""
+    st.session_state.score += 1
+    st.balloons() # 클릭할 때마다 풍선 효과를 줍니다.
+
+# 3. 사용자 컨트롤 위젯 (버튼)
+# 버튼을 누르면 on_click에 지정된 함수가 실행됩니다.
+st.button(
+    "클릭하여 점수 얻기!", 
+    on_click=click_button, 
+    use_container_width=True,
+    type="primary" # 버튼을 강조합니다.
+)
+
+st.caption("새로고침(Rerun)을 해도 점수가 유지됩니다.")
