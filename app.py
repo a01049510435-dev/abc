@@ -1,44 +1,47 @@
 import streamlit as st
 import random
 
-# 1. 정답 숫자 설정
-# st.session_state를 사용하여 앱을 새로고침해도 정답이 유지되도록 합니다.
-if 'secret_number' not in st.session_state:
-    st.session_state.secret_number = random.randint(1, 10)
-    st.session_state.guess_made = False
+# 1. 상태(Score) 초기화
+if 'score' not in st.session_state:
+    st.session_state.score = 0
+if 'shots_fired' not in st.session_state:
+    st.session_state.shots_fired = 0
+if 'message' not in st.session_state:
+    st.session_state.message = "게임 시작!"
 
-st.title("🤫 1부터 10 사이 숫자 맞히기 게임")
-st.write("랜덤으로 선택된 숫자를 맞춰보세요!")
+st.title("🔫 Streamlit 슈팅 시뮬레이션")
+st.markdown("---")
 
-# 2. 사용자로부터 숫자 입력 받기
-guess = st.number_input(
-    "당신의 예상 숫자를 입력하세요 (1~10):",
-    min_value=1,
-    max_value=10,
-    step=1,
-    key='guess_input'
-)
-
-# 3. '정답 확인' 버튼
-if st.button("정답 확인"):
-    st.session_state.guess_made = True
+# 2. 게임 로직 함수
+def shoot_target():
+    """총알을 발사하고 점수를 업데이트하는 함수"""
+    st.session_state.shots_fired += 1
     
-    # 4. 정답 비교 및 결과 표시
-    if guess == st.session_state.secret_number:
-        st.success("🎉 축하합니다! 정답입니다! 🎉")
-        st.balloons() # 정답일 때 풍선 효과
-        # 새 게임을 위해 정답을 변경합니다.
-        st.session_state.secret_number = random.randint(1, 10) 
-        st.session_state.guess_made = False
-        
-    elif guess < st.session_state.secret_number:
-        st.warning(f"👆 틀렸습니다. 정답은 {guess}보다 **더 큰** 숫자입니다.")
-        
-    else: # guess > st.session_state.secret_number
-        st.warning(f"👇 틀렸습니다. 정답은 {guess}보다 **더 작은** 숫자입니다.")
+    # 30% 확률로 명중 (Hit)
+    if random.random() < 0.3:
+        st.session_state.score += 10
+        st.session_state.message = "🎯 명중! (+10점)"
+    else:
+        st.session_state.score -= 1 # 빗맞췄을 때 패널티
+        st.session_state.message = "❌ 빗나감... (-1점)"
 
-# 게임을 다시 시작하고 싶을 때 버튼을 눌러 정답을 바꿀 수 있습니다.
-if st.button("새 게임 시작"):
-    st.session_state.secret_number = random.randint(1, 10)
-    st.session_state.guess_made = False
-    st.info("새로운 비밀 숫자가 설정되었습니다. 다시 시작하세요!")
+# 3. 게임 상태 표시
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("현재 점수 (SCORE)", st.session_state.score)
+with col2:
+    st.metric("총 발사 횟수 (SHOTS)", st.session_state.shots_fired)
+    
+st.subheader(st.session_state.message)
+
+# 4. '발사' 버튼 (가장 중요한 상호작용)
+# 버튼을 누르는 것이 '총을 쏘는' 행위라고 가정합니다.
+st.markdown("##") # 공간 확보
+if st.button("💥 발사! (Shoot!)", use_container_width=True):
+    shoot_target()
+    
+# 5. 간단한 시각적 요소 추가 (조준경 흉내)
+# 이 이미지는 실제 Streamlit 앱에서는 표시되지 않고, 사용자에게 시각적 힌트를 줍니다.
+st.markdown("---")
+st.caption("실제 FPS와 달리 이미지가 움직이거나 적이 없습니다.")
+st.image("https://via.placeholder.com/600x200?text=<<+Target+Area+>>", use_column_width=True)
