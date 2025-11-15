@@ -1,57 +1,78 @@
 import streamlit as st
-# (참고: 실제 키보드 입력 컴포넌트는 st.pills가 아닐 수 있으며, 
-# 해당 컴포넌트의 사용법에 따라 코드가 달라집니다. 
-# 여기서는 키 입력 -> move_pacman이 호출된다는 개념을 설명합니다.)
-# from streamlit_pills import pills 
-import random
 import numpy as np
 
-# (이전 팩맨 코드의 상수, 상태 초기화, 맵 초기화 함수, 유령 이동 함수는 동일하다고 가정)
-# ... [이전 코드 생략] ...
+# --- 1. 상수 및 맵 설정 ---
+PACMAN = "🟡"
+DOT = "⚫"
+WALL = "⬛"
+EMPTY = "⬜"
 
-# --- 1. 상태 초기화 및 맵 설정 (이전 코드와 동일) ---
-# ... (st.session_state 초기화 및 reset_game() 함수) ...
+# 2x2 맵 (벽과 점)
+INITIAL_MAP = [
+    [WALL, WALL, WALL, WALL],
+    [WALL, DOT,  DOT,  WALL],
+    [WALL, DOT,  DOT,  WALL],
+    [WALL, WALL, WALL, WALL]
+]
 
-# --- 2. 맵 렌더링 (이전 코드와 동일) ---
-# ... (render_map() 함수) ...
+# --- 2. 상태 초기화 ---
+if 'pos' not in st.session_state:
+    st.session_state.pos = (1, 1) # (y, x)
+if 'score' not in st.session_state:
+    st.session_state.score = 0
+if 'map' not in st.session_state:
+    st.session_state.map = INITIAL_MAP # 맵 상태 복사
 
-# --- 3. 핵심: 키보드 입력 감지 컴포넌트 통합 (개념적 코드) ---
-
-def on_key_press(key_code):
-    """키보드 입력이 감지될 때 호출되는 함수"""
-    dy, dx = 0, 0
+# --- 3. 핵심 로직: 팩맨 이동 및 처리 ---
+def move_pacman(dy, dx):
+    """팩맨을 움직이고 충돌/점 획득을 처리합니다."""
+    cy, cx = st.session_state.pos
+    ny, nx = cy + dy, cx + dx
     
-    # 키보드 코드를 Streamlit 컴포넌트가 Python으로 전달한다고 가정
-    if key_code == 'ArrowUp':
-        dy, dx = -1, 0
-    elif key_code == 'ArrowDown':
-        dy, dx = 1, 0
-    elif key_code == 'ArrowLeft':
-        dy, dx = 0, -1
-    elif key_code == 'ArrowRight':
-        dy, dx = 0, 1
+    # 1. 벽 충돌 확인
+    if st.session_state.map[ny][nx] == WALL:
+        st.info("⚠️ 벽입니다!")
+        return
         
-    if dy != 0 or dx != 0:
-        # 팩맨 이동 로직 호출
-        move_pacman(dy, dx)
-        # 상태 업데이트 후 화면 재갱신
-        st.rerun()
-
-st.header("🟡 Streamlit 키보드 제어 팩맨")
-st.caption("실제 작동을 위해서는 JavaScript 키보드 감지 컴포넌트가 필요합니다.")
-
-# 맵과 점수 표시
-# ... (render_map() 및 점수 표시) ...
-
-if not st.session_state.game_over:
-    # ⚠️ 이 부분이 실제 키보드 입력을 웹 브라우저로부터 받아오는 컴포넌트가 들어갈 자리입니다.
-    # 예시: keyboard_input = external_keyboard_component("listen")
-    # if keyboard_input:
-    #     on_key_press(keyboard_input)
+    # 2. 팩맨 위치 업데이트
+    st.session_state.pos = (ny, nx)
     
-    # 임시: 키보드 컴포넌트 없이 버튼만 유지 (Streamlit 기본 기능만 사용할 경우)
-    st.subheader("방향 버튼을 눌러 이동하세요 (키보드 대신)")
-    
-    # ... [이전 버튼 코드 유지] ...
+    # 3. 점 획득 확인
+    if st.session_state.map[ny][nx] == DOT:
+        st.session_state.score += 10
+        st.session_state.map[ny][nx] = EMPTY # 점을 빈 공간으로 변경
+        st.toast("점 획득!", icon='🟡')
 
-# --- [이전 팩맨 코드의 move_pacman, move_ghost, UI 나머지 부분 유지] ---
+# --- 4. 맵 렌더링 ---
+def render_map():
+    """현재 상태를 반영하여 맵을 표시합니다."""
+    map_display = ""
+    for r in range(len(st.session_state.map)):
+        row_display = ""
+        for c in range(len(st.session_state.map[0])):
+            pos = (r, c)
+            
+            if pos == st.session_state.pos:
+                row_display += f" {PACMAN} "
+            else:
+                row_display += f" {st.session_state.map[r][c]} "
+        map_display += row_display + "\n"
+    st.code(map_display)
+
+
+# --- 5. UI 및 컨트롤 통합 ---
+st.title("🟡 초간단 키보드 제어 시뮬레이션")
+st.markdown(f"**점수:** `{st.session_state.score}`")
+
+render_map()
+
+# ⚠️ 이 부분이 키보드 입력을 처리해야 하는 부분입니다.
+st.info("키보드 제어 기능을 활성화하려면 **외부 컴포넌트**를 사용해야 합니다.")
+
+# (실제 키보드 이벤트 리스너 코드는 컴포넌트에 의해 자동으로 삽입된다고 가정)
+
+# 디버깅/테스트용 버튼 (키보드 컴포넌트 없이 테스트할 때 사용)
+st.caption("디버깅/테스트용: 버튼을 눌러 이동하세요")
+
+col1, col2, col3 = st.columns(3)
+with col2: st.button("⬆️", on_click=
